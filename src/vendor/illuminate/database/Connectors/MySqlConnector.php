@@ -18,6 +18,10 @@ class MySqlConnector extends Connector implements ConnectorInterface
 
         $options = $this->getOptions($config);
 
+        // BỔ SUNG CẤU HÌNH BẢO MẬT SSL CHO TIDB CLOUD
+        $options[PDO::MYSQL_ATTR_SSL_CA] = '/var/www/html/isrgrootx1.pem';
+        $options[PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = false;
+
         // We need to grab the PDO options that should be used while making the brand
         // new connection instance. The PDO options control various aspects of the
         // connection's behavior, and some might be specified by the developers.
@@ -113,8 +117,8 @@ class MySqlConnector extends Connector implements ConnectorInterface
     protected function getDsn(array $config)
     {
         return $this->hasSocket($config)
-                            ? $this->getSocketDsn($config)
-                            : $this->getHostDsn($config);
+                    ? $this->getSocketDsn($config)
+                    : $this->getHostDsn($config);
     }
 
     /**
