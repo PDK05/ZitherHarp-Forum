@@ -10,8 +10,10 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 WORKDIR /var/www/html
 COPY . .
 
-# Tạo đúng thư mục storage và assets bên trong thư mục src, sau đó phân quyền chuẩn
+# Tạo đầy đủ các thư mục con bên trong storage và assets, sau đó phân quyền toàn diện cho www-data
 RUN mkdir -p /var/www/html/src/storage/logs \
+    && mkdir -p /var/www/html/src/storage/formatter \
+    && mkdir -p /var/www/html/src/storage/cache \
     && mkdir -p /var/www/html/src/public/assets \
     && chown -R www-data:www-data /var/www/html/src/storage /var/www/html/src/public/assets \
     && chmod -R 775 /var/www/html/src/storage /var/www/html/src/public/assets
