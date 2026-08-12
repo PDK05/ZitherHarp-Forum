@@ -12,15 +12,15 @@ COPY . .
 
 # Tạo các thư mục cần thiết và phân quyền chuẩn cho Flarum
 RUN mkdir -p /var/www/html/storage \
-    && mkdir -p /var/www/html/public/assets \
-    && chown -R www-data:www-data /var/www/html/storage /var/www/html/public/assets
+    && mkdir -p /var/www/html/src/public/assets \
+    && chown -R www-data:www-data /var/www/html/storage /var/www/html/src/public/assets
 
-# Cấu hình Apache trỏ vào thư mục public và ép buộc nhận tệp index.php
-ENV APACHE_DOCUMENT_ROOT /var/www/html/public
+# Cấu hình Apache trỏ đúng vào thư mục src/public thực tế của dự án
+ENV APACHE_DOCUMENT_ROOT /var/www/html/src/public
 RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/000-default.conf
 RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf
 
-RUN echo '<Directory /var/www/html/public>\n\
+RUN echo '<Directory /var/www/html/src/public>\n\
     Options -Indexes +FollowSymLinks\n\
     AllowOverride All\n\
     Require all granted\n\
