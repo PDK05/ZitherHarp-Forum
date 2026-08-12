@@ -32,10 +32,11 @@ RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-av
 RUN sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf
 
 # CẤU HÌNH QUAN TRỌNG: Tạo thư mục và phân quyền
-# Tạo toàn bộ các thư mục con cần thiết cho storage để tránh lỗi thiếu thư mục
+# Tạo toàn bộ các thư mục con cần thiết cho storage
 RUN mkdir -p /var/www/html/storage/sessions \
     /var/www/html/storage/views \
     /var/www/html/storage/cache \
+    /var/www/html/storage/formatter \
     /var/www/html/public/assets \
     && chown -R www-data:www-data /var/www/html/storage /var/www/html/public/assets
 
