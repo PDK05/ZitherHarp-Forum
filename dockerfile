@@ -10,15 +10,16 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 WORKDIR /var/www/html
 COPY . .
 
-# Tạo đầy đủ các thư mục con bên trong storage và assets, sau đó phân quyền toàn diện cho www-data
+# Tạo toàn bộ các thư mục lưu trữ cần thiết cho Flarum bên trong src/storage
 RUN mkdir -p /var/www/html/src/storage/logs \
     && mkdir -p /var/www/html/src/storage/formatter \
     && mkdir -p /var/www/html/src/storage/cache \
+    && mkdir -p /var/www/html/src/storage/sessions \
     && mkdir -p /var/www/html/src/public/assets \
     && chown -R www-data:www-data /var/www/html/src/storage /var/www/html/src/public/assets \
     && chmod -R 775 /var/www/html/src/storage /var/www/html/src/public/assets
 
-# Cấu hình Apache trỏ đúng vào src/public
+# Cấu hình Apache trỏ đúng vào thư mục src/public
 ENV APACHE_DOCUMENT_ROOT /var/www/html/src/public
 RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/000-default.conf
 RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf
