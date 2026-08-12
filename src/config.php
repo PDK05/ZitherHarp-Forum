@@ -18,4 +18,8 @@ return [
         ],
     ],
     'url' => 'https://zitherharp-forum.onrender.com',
+    'paths' => [
+        'api' => 'api',
+        'admin' => 'admin',
+    ],
 ];
