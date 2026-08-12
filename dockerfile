@@ -1,6 +1,6 @@
 FROM php:8.2-apache
 
-# Cài đặt các extension PHP cần thiết và git/unzip để Composer hoạt động
+# Cài đặt các extension cần thiết
 RUN apt-get update && apt-get install -y \
     libpng-dev \
     libjpeg-dev \
@@ -14,25 +14,27 @@ RUN apt-get update && apt-get install -y \
 # Bật module Apache Rewrite cho Flarum
 RUN a2enmod rewrite
 
-# Cài đặt Composer phiên bản mới nhất
+# Cài đặt Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# Sao chép toàn bộ mã nguồn (ngoại trừ vendor vì đã chặn ở .gitignore) vào container
+# Sao chép mã nguồn vào container
 COPY src /var/www/html
 
 # Thiết lập thư mục làm việc
 WORKDIR /var/www/html
 
-# Tự động chạy Composer install để tải thư mục vendor trực tiếp trên server Render khi build
+# Chạy composer install
 RUN composer install --no-dev --prefer-dist --optimize-autoloader
 
-# Trỏ thư mục gốc của Apache vào thư mục public của Flarum
+# Trỏ Apache vào thư mục public
 ENV APACHE_DOCUMENT_ROOT /var/www/html/public
 RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf
 RUN sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf
 
-# Phân quyền ghi cho thư mục lưu trữ và cache
-RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/public/assets
+# CẤU HÌNH QUAN TRỌNG: Tạo thư mục và phân quyền
+# Chúng ta tạo thư mục storage và assets trước khi phân quyền để tránh lỗi "No such file"
+RUN mkdir -p /var/www/html/storage /var/www/html/public/assets \
+    && chown -R www-data:www-data /var/www/html/storage /var/www/html/public/assets
 
-# Mở cổng 80 cho web server
+# Mở cổng 80
 EXPOSE 80
