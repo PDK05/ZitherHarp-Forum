@@ -5,7 +5,6 @@ return [
         'host'      => 'gateway01.ap-southeast-1.prod.aws.tidbcloud.com',
         'port'      => '4000',
         'database'  => 'zitherharp_forum_db',
-        // Đọc giá trị từ biến môi trường của hệ thống
         'username'  => getenv('DB_USERNAME'),
         'password'  => getenv('DB_PASSWORD'),
         'charset'   => 'utf8mb4',
