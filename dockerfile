@@ -32,8 +32,11 @@ RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-av
 RUN sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf
 
 # CẤU HÌNH QUAN TRỌNG: Tạo thư mục và phân quyền
-# Chúng ta tạo thư mục storage và assets trước khi phân quyền để tránh lỗi "No such file"
-RUN mkdir -p /var/www/html/storage /var/www/html/public/assets \
+# Tạo toàn bộ các thư mục con cần thiết cho storage để tránh lỗi thiếu thư mục
+RUN mkdir -p /var/www/html/storage/sessions \
+    /var/www/html/storage/views \
+    /var/www/html/storage/cache \
+    /var/www/html/public/assets \
     && chown -R www-data:www-data /var/www/html/storage /var/www/html/public/assets
 
 # Mở cổng 80
