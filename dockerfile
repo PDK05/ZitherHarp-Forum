@@ -10,14 +10,20 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 WORKDIR /var/www/html
 COPY . .
 
-# Phân quyền chuẩn cho Flarum
-# Tạo các thư mục cần thiết nếu chưa có và phân quyền chuẩn cho Flarum
+# Tạo các thư mục cần thiết và phân quyền chuẩn cho Flarum
 RUN mkdir -p /var/www/html/storage \
     && mkdir -p /var/www/html/public/assets \
     && chown -R www-data:www-data /var/www/html/storage /var/www/html/public/assets
 
-# Cấu hình Apache trỏ vào public và cho phép ghi đè cấu hình (AllowOverride All)
-RUN sed -i 's|/var/www/html|/var/www/html/public|g' /etc/apache2/sites-available/000-default.conf
-RUN echo '<Directory /var/www/html/public>\n    AllowOverride All\n</Directory>' >> /etc/apache2/apache2.conf
+# Cấu hình Apache trỏ vào thư mục public và cấp quyền truy cập đầy đủ
+ENV APACHE_DOCUMENT_ROOT /var/www/html/public
+RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/000-default.conf
+RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf
+
+RUN echo '<Directory /var/www/html/public>\n\
+    Options Indexes FollowSymLinks\n\
+    AllowOverride All\n\
+    Require all granted\n\
+</Directory>' >> /etc/apache2/apache2.conf
 
 EXPOSE 80
