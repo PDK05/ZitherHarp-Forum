@@ -1,0 +1,170 @@
+<?php
+
+/*
+ * This file is part of Flarum.
+ *
+ * For detailed copyright and license information, please view the
+ * LICENSE file that was distributed with this source code.
+ */
+
+namespace Flarum\Forum\Content;
+
+use Flarum\Api\Client;
+use Flarum\Frontend\Document;
+use Flarum\Http\Exception\RouteNotFoundException;
+use Flarum\Http\UrlGenerator;
+use Illuminate\Contracts\View\Factory;
+use Illuminate\Support\Arr;
+use Psr\Http\Message\ServerRequestInterface as Request;
+
+class Discussion
+{
+    /**
+     * @var Client
+     */
+    protected $api;
+
+    /**
+     * @var UrlGenerator
+     */
+    protected $url;
+
+    /**
+     * @var Factory
+     */
+    protected $view;
+
+    /**
+     * @param Client $api
+     * @param UrlGenerator $url
+     * @param Factory $view
+     */
+    public function __construct(Client $api, UrlGenerator $url, Factory $view)
+    {
+        $this->api = $api;
+        $this->url = $url;
+        $this->view = $view;
+    }
+
+    public function __invoke(Document $document, Request $request)
+    {
+        $queryParams = $request->getQueryParams();
+        $id = Arr::get($queryParams, 'id');
+        $near = intval(Arr::get($queryParams, 'near'));
+        $page = max(1, intval(Arr::get($queryParams, 'page')), 1 + intdiv($near, 20));
+
+        $params = [
+            'id' => $id,
+            'page' => [
+                'near' => $near,
+                'offset' => ($page - 1) * 20,
+                'limit' => 20
+            ]
+        ];
+
+        $apiDocument = $this->getApiDocument($request, $id, $params);
+
+        $getResource = function ($link) use ($apiDocument) {
+            return Arr::first($apiDocument->included, function ($value) use ($link) {
+                return $value->type === $link->type && $value->id === $link->id;
+            });
+        };
+
+        $url = function ($newQueryParams) use ($queryParams, $apiDocument) {
+            $newQueryParams = array_merge($queryParams, $newQueryParams);
+            unset($newQueryParams['id']);
+            unset($newQueryParams['near']);
+
+            if (Arr::get($newQueryParams, 'page') == 1) {
+                unset($newQueryParams['page']);
+            }
+
+            $queryString = http_build_query($newQueryParams);
+
+            return $this->url->to('forum')->route('discussion', ['id' => $apiDocument->data->attributes->slug]).
+                ($queryString ? '?'.$queryString : '');
+        };
+
+        // Ask for the posts this page is supposed to show, instead of sifting the
+        // included resources for anything post-shaped. Extensions register their
+        // own post relationships on this endpoint: flarum/mentions includes
+        // posts.mentionedBy along with posts.mentionedBy.discussion, so every post
+        // that quoted a post on this page arrives as a full post, with a discussion
+        // relationship and rendered content, and is indistinguishable from the
+        // page's own posts once it is in `included`. That is how quoted posts ended
+        // up printed on pages they do not belong to, and printed again on the page
+        // they do.
+        $postsApiDocument = $this->getPostsApiDocument($request, [
+            'filter' => ['discussion' => $apiDocument->data->id],
+            'sort' => 'number',
+            'page' => [
+                'offset' => ($page - 1) * 20,
+                'limit' => 20,
+            ],
+        ]);
+
+        $posts = [];
+
+        foreach ($postsApiDocument->data as $resource) {
+            if ($resource->type === 'posts' && isset($resource->relationships->discussion) && isset($resource->attributes->contentHtml)) {
+                $posts[] = $resource;
+            }
+        }
+
+        $hasPrevPage = $page > 1;
+        $hasNextPage = $page < 1 + intval($apiDocument->data->attributes->commentCount / 20);
+
+        $document->title = $apiDocument->data->attributes->title;
+        $document->content = $this->view->make('flarum.forum::frontend.content.discussion', compact('apiDocument', 'page', 'hasPrevPage', 'hasNextPage', 'getResource', 'posts', 'url'));
+        $document->payload['apiDocument'] = $apiDocument;
+
+        // Only apply the canonical URL if it's empty. It could have been set by another extension already,
+        // if so, we'll leave it alone.
+        if (empty($document->canonicalUrl)) {
+            $document->canonicalUrl = $url([]);
+        }
+
+        $document->page = $page;
+        $document->hasNextPage = $hasNextPage;
+
+        return $document;
+    }
+
+    /**
+     * Get the result of an API request to show a discussion.
+     *
+     * @throws RouteNotFoundException
+     */
+    protected function getApiDocument(Request $request, string $id, array $params)
+    {
+        $params['bySlug'] = true;
+        $response = $this->api
+            ->withParentRequest($request)
+            ->withQueryParams($params)
+            ->get("/discussions/$id");
+        $statusCode = $response->getStatusCode();
+
+        if ($statusCode === 404) {
+            throw new RouteNotFoundException;
+        }
+
+        return json_decode($response->getBody());
+    }
+
+    /**
+     * Get the result of an API request to list one page of a discussion's posts.
+     *
+     * The primary data of this response is exactly the posts being asked for, so
+     * unlike the discussion endpoint's `included`, extensions cannot add posts of
+     * their own to it.
+     */
+    protected function getPostsApiDocument(Request $request, array $params)
+    {
+        $response = $this->api
+            ->withParentRequest($request)
+            ->withQueryParams($params)
+            ->get('/posts');
+
+        return json_decode($response->getBody());
+    }
+}
